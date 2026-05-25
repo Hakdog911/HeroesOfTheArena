@@ -1,38 +1,25 @@
-package hota.controller;
+package controller;
 
-import hota.model.Ability;
-import hota.model.GameModel;
-import hota.model.Hero;
-import hota.model.Resettable;
+import model.Ability;
+import model.GameModel;
+import model.Hero;
+import model.Resettable;
+import util.BattleLogger;
 
 import javax.swing.Timer;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/**
- * GameController
- * Handles all game logic: turn management, win/loss detection, and AI.
- *
- * MVC role:
- * • Receives player input actions from the View
- * • Mutates the Model
- * • Notifies registered GameObservers when state changes
- * • Zero Swing/UI imports except javax.swing.Timer (needed for EDT-safe delay)
- *
- * Player actions:
- * -1 = basic attack
- * -2 = heal
- * -3 = defend (damage-reduction shield)
- * 0+ = ability index
- */
 public class GameController implements Resettable {
 
     private final GameModel model;
     private final Random random;
     private final List<GameObserver> observers;
 
-    /** Delay in ms between the player's action and the AI's response. */
+    private Path savedLogPath;
+
     private static final int AI_DELAY_MS = 1200;
 
     public GameController(GameModel model) {
@@ -41,23 +28,13 @@ public class GameController implements Resettable {
         this.observers = new ArrayList<>();
     }
 
-    // ── Observer management ────────────────────────────────────────────────────
-
-    public void addObserver(GameObserver observer) {
-        observers.add(observer);
-    }
-
-    public void removeObserver(GameObserver observer) {
-        observers.remove(observer);
-    }
+    public void addObserver(GameObserver observer) { observers.add(observer); }
+    public void removeObserver(GameObserver observer) { observers.remove(observer); }
 
     private void notifyObservers() {
-        for (GameObserver o : observers)
-            o.onStateChanged();
+        for (GameObserver o : observers) o.onStateChanged();
     }
-
-    // ── Game lifecycle ─────────────────────────────────────────────────────────
-
+ 
     public void startGame() {
         model.setGameOver(false);
         model.setPlayerWon(false);
@@ -67,22 +44,16 @@ public class GameController implements Resettable {
         log("═══════════════════════════════");
         log("   ⚔  HEROES OF THE ARENA  ⚔  ");
         log("═══════════════════════════════");
-        log("  " + model.getPlayer().getName()
-                + "  vs  " + model.getOpponent().getName());
+        log("  " + model.getPlayer().getName() + "  vs  " + model.getOpponent().getName());
         log("───────────────────────────────");
-        log("\nTurn 1 — Your move!");
+        log("Turn 1 — Your move!");
         notifyObservers();
     }
 
-    /**
-     * Processes the player's chosen action for this turn.
-     *
-     * @param actionIndex  -1 = attack | -2 = heal | -3 = defend | 0+ = ability
-     */
     public void playerAction(int actionIndex) {
         if (model.isGameOver() || !model.isPlayerTurn()) return;
 
-        Hero player   = model.getPlayer();
+        Hero player = model.getPlayer();
         Hero opponent = model.getOpponent();
 
         player.tickCooldowns();
@@ -104,7 +75,6 @@ public class GameController implements Resettable {
             return;
         }
 
-        // Disable buttons immediately, then run AI after delay
         model.setPlayerTurn(false);
         notifyObservers();
 
@@ -116,16 +86,13 @@ public class GameController implements Resettable {
         aiTimer.start();
     }
 
-    // ── AI turn ────────────────────────────────────────────────────────────────
-
     private void aiTurn() {
-        Hero player = model.getPlayer();
+        Hero player   = model.getPlayer();
         Hero opponent = model.getOpponent();
 
         opponent.tickCooldowns();
-        log("\n─── " + opponent.getName() + "'s turn ───");
+        log("─── " + opponent.getName() + "'s turn ───");
 
-        // Collect usable abilities
         List<Ability> available = new ArrayList<>();
         for (Ability a : opponent.getAbilities()) {
             if (a.isReady() && opponent.getMana() >= a.getManaCost()) {
@@ -133,7 +100,6 @@ public class GameController implements Resettable {
             }
         }
 
-        // 30% chance to defend if HP is below 40%
         boolean lowHp = opponent.getHp() < opponent.getMaxHp() * 0.4;
         String result;
 
@@ -151,11 +117,9 @@ public class GameController implements Resettable {
         if (!checkWinCondition()) {
             model.incrementTurn();
             model.setPlayerTurn(true);
-            log("\n─── Turn " + model.getCurrentTurn() + " — Your move! ───");
+            log("─── Turn " + model.getCurrentTurn() + " — Your move! ───");
         }
     }
-
-    // ── Win condition ──────────────────────────────────────────────────────────
 
     public boolean checkWinCondition() {
         if (!model.getOpponent().isAlive()) {
@@ -164,6 +128,7 @@ public class GameController implements Resettable {
             log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             log("🏆  " + model.getPlayer().getName() + " WINS!");
             log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            saveBattleLog();
             return true;
         }
         if (!model.getPlayer().isAlive()) {
@@ -172,12 +137,23 @@ public class GameController implements Resettable {
             log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             log("💀  " + model.getPlayer().getName() + " was defeated...");
             log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            saveBattleLog();
             return true;
         }
         return false;
     }
 
-    // ── Resettable ─────────────────────────────────────────────────────────────
+    private void saveBattleLog() {
+        try {
+            savedLogPath = BattleLogger.saveBattleLog(
+                    model.getPlayer().getName(),
+                    model.getOpponent().getName(),
+                    model.getCombatLog(),
+                    model.isPlayerWon());
+        } catch (BattleLogger.BattleLogException e) {
+            model.appendLog("⚠ Could not save battle log: " + e.getMessage());
+        }
+    }
 
     @Override
     public void reset() {
@@ -185,44 +161,17 @@ public class GameController implements Resettable {
         notifyObservers();
     }
 
-    // ── Read-through accessors for the View ────────────────────────────────────
-
-    public GameModel getModel() {
-        return model;
-    }
-
-    public Hero getPlayer() {
-        return model.getPlayer();
-    }
-
-    public Hero getOpponent() {
-        return model.getOpponent();
-    }
-
-    public boolean isGameOver() {
-        return model.isGameOver();
-    }
-
-    public boolean isPlayerWon() {
-        return model.isPlayerWon();
-    }
-
-    public boolean isPlayerTurn() {
-        return model.isPlayerTurn();
-    }
-
-    public List<String> getCombatLog() {
-        return model.getCombatLog();
-    }
-
-    public int getCurrentTurn() {
-        return model.getCurrentTurn();
-    }
-
-    // ── Helpers ────────────────────────────────────────────────────────────────
+    public GameModel getModel(){return model;}
+    public Hero getPlayer(){return model.getPlayer();}
+    public Hero getOpponent(){return model.getOpponent();}
+    public boolean isGameOver(){return model.isGameOver();}
+    public boolean isPlayerWon(){return model.isPlayerWon();}
+    public boolean isPlayerTurn(){return model.isPlayerTurn();}
+    public List<String> getCombatLog(){return model.getCombatLog();}
+    public int getCurrentTurn(){return model.getCurrentTurn();}
+    public Path getSavedLogPath(){return savedLogPath;}
 
     private void log(String message) {
         model.appendLog(message);
-        System.out.println(message);
     }
 }

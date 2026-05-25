@@ -1,17 +1,12 @@
-package hota.view;
+package view;
 
-import hota.controller.GameController;
-import hota.controller.GameObserver;
-import hota.model.GameModel;
-import hota.model.Hero;
+import controller.GameController;
+import controller.GameObserver;
+import model.GameModel;
+import model.Hero;
 
 import javax.swing.*;
 
-/**
- * ArenaFrame
- * Owns the arena JFrame and the MVC stack.
- * Listens for game-over events and shows BattleResultDialog.
- */
 public class ArenaFrame extends JFrame implements GameObserver {
 
     private GameController controller;
@@ -25,21 +20,29 @@ public class ArenaFrame extends JFrame implements GameObserver {
     private void buildArena(Hero player, Hero opponent) {
         resultShown = false;
 
-        // Dispose any previous content
         getContentPane().removeAll();
 
-        // ── Wire MVC ──────────────────────────────────────────────────────────
         GameModel model = new GameModel(player, opponent);
         controller = new GameController(model);
         arenaPanel = new ArenaPanel(controller);
 
-        controller.addObserver(this); // ArenaFrame watches for game-over
+        controller.addObserver(this);
 
         setTitle("Heroes of the Arena — " + player.getName() + " vs " + opponent.getName());
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(780, 660);
         setLocationRelativeTo(null);
         add(arenaPanel);
+
+        getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke("F11"), "toggleFullscreen");
+        getRootPane().getActionMap().put("toggleFullscreen",
+                new AbstractAction() {
+                    @Override
+                    public void actionPerformed(java.awt.event.ActionEvent e) {
+                        toggleFullscreen();
+                    }
+                });
 
         revalidate();
         repaint();
@@ -48,15 +51,11 @@ public class ArenaFrame extends JFrame implements GameObserver {
         controller.startGame();
     }
 
-    // ── GameObserver ───────────────────────────────────────────────────────────
-
     @Override
     public void onStateChanged() {
-        if (!controller.isGameOver() || resultShown)
-            return;
+        if (!controller.isGameOver() || resultShown) return;
         resultShown = true;
 
-        // Small delay so the final log line is visible before the popup
         Timer t = new Timer(600, e -> showResultDialog());
         t.setRepeats(false);
         t.start();
@@ -66,20 +65,15 @@ public class ArenaFrame extends JFrame implements GameObserver {
         Hero player = controller.getPlayer();
         Hero opponent = controller.getOpponent();
         boolean playerWon = controller.isPlayerWon();
+        String logPath = controller.getSavedLogPath() != null
+                ? controller.getSavedLogPath().toAbsolutePath().toString()
+                : null;
 
-        BattleResultDialog dialog = new BattleResultDialog(
-                this,
-                playerWon,
-                player.getName(),
-                player.getHeroClass(),
-                opponent.getHeroClass(),
-                newOpponent -> {
+        BattleResultDialog dialog = new BattleResultDialog(this, playerWon, player.getName(), player.getHeroClass(), opponent.getHeroClass(), logPath, newOpponent -> {
                     if (newOpponent == null) {
-                        // Return to hero selection
                         dispose();
                         new HeroSelectionFrame();
                     } else {
-                        // Rematch or next opponent — keep same player, reset HP/mana
                         player.reset();
                         buildArena(player, newOpponent);
                     }
@@ -88,11 +82,10 @@ public class ArenaFrame extends JFrame implements GameObserver {
         dialog.setVisible(true);
     }
 
-    // ── Fullscreen toggle ──────────────────────────────────────────────────────
-
     private void toggleFullscreen() {
-        java.awt.GraphicsDevice gd = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment()
-                .getDefaultScreenDevice();
+        java.awt.GraphicsDevice gd =
+                java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment()
+                        .getDefaultScreenDevice();
 
         if (gd.getFullScreenWindow() == null) {
             dispose();

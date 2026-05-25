@@ -1,56 +1,36 @@
-package hota.view;
+package view;
 
-import hota.controller.GameController;
-import hota.controller.GameObserver;
-import hota.model.Ability;
-import hota.model.Hero;
+import controller.GameController;
+import controller.GameObserver;
+import model.Ability;
+import model.Hero;
 
 import javax.swing.*;
 import javax.swing.border.Border;
 import java.awt.*;
 import java.util.List;
 
-/**
- * ArenaPanel
- * Main game screen — HP/mana bars, ability buttons, combat log.
- *
- * MVC role:
- * • Implements GameObserver — refreshes whenever the Controller notifies
- * • Forwards all user input to the Controller
- * • Never touches game logic directly
- *
- * Player action buttons:
- * ⚔ Basic Attack → playerAction(-1)
- * 💚 Heal → playerAction(-2)
- * 🛡 Defend → playerAction(-3)
- * ✨ Ability 0-2 → playerAction(0-2)
- */
 public class ArenaPanel extends JPanel implements Renderable, GameObserver {
 
     private final GameController controller;
 
-    // ── Player widgets ─────────────────────────────────────────────────────────
     private JProgressBar playerHpBar;
     private JProgressBar playerManaBar;
     private JLabel playerStatsLabel;
     private JLabel playerNameLabel;
 
-    // ── Opponent widgets ───────────────────────────────────────────────────────
     private JProgressBar opponentHpBar;
     private JProgressBar opponentManaBar;
     private JLabel opponentStatsLabel;
     private JLabel opponentNameLabel;
 
-    // ── Action buttons ─────────────────────────────────────────────────────────
     private JButton[] abilityButtons;
     private JButton attackButton;
     private JButton healButton;
     private JButton defendButton;
 
-    // ── Combat log ─────────────────────────────────────────────────────────────
     private JTextArea combatLogArea;
 
-    // ── Palette ────────────────────────────────────────────────────────────────
     private static final Color BG = new Color(12, 12, 22);
     private static final Color PANEL_BG = new Color(22, 22, 40);
     private static final Color BORDER_C = new Color(60, 60, 100);
@@ -64,12 +44,8 @@ public class ArenaPanel extends JPanel implements Renderable, GameObserver {
     private static final Color PLAYER_LBL = new Color(80, 220, 120);
     private static final Color ENEMY_LBL = new Color(220, 80, 80);
     private static final Color LOG_FG = new Color(170, 220, 170);
-    private static final Color SHIELD_C = new Color(100, 160, 220);
 
-    // ── Base font sizes (scale with window) ───────────────────────────────────
     private static final int BASE_W = 780;
-
-    // ── Constructor ────────────────────────────────────────────────────────────
 
     public ArenaPanel(GameController controller) {
         this.controller = controller;
@@ -82,7 +58,6 @@ public class ArenaPanel extends JPanel implements Renderable, GameObserver {
         buildUI();
         render();
 
-        // Responsive font scaling on resize / fullscreen
         addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override
             public void componentResized(java.awt.event.ComponentEvent e) {
@@ -90,8 +65,6 @@ public class ArenaPanel extends JPanel implements Renderable, GameObserver {
             }
         });
     }
-
-    // ── Renderable ─────────────────────────────────────────────────────────────
 
     @Override
     public void render() {
@@ -105,26 +78,18 @@ public class ArenaPanel extends JPanel implements Renderable, GameObserver {
         boolean over = controller.isGameOver();
         boolean myTurn = controller.isPlayerTurn();
 
-        // ── Progress bars ──────────────────────────────────────────────────────
         updateBar(playerHpBar, player.getHp(), player.getMaxHp(), "HP");
         updateBar(playerManaBar, player.getMana(), player.getMaxMana(), "MP");
         updateBar(opponentHpBar, opponent.getHp(), opponent.getMaxHp(), "HP");
         updateBar(opponentManaBar, opponent.getMana(), opponent.getMaxMana(), "MP");
 
-        // Turn HP bar red when low
-        playerHpBar.setForeground(
-                player.getHp() < player.getMaxHp() * 0.25 ? LOW_HP_C : HP_C);
-        opponentHpBar.setForeground(
-                opponent.getHp() < opponent.getMaxHp() * 0.25 ? LOW_HP_C : HP_C);
+        playerHpBar.setForeground(player.getHp() < player.getMaxHp() * 0.25 ? LOW_HP_C : HP_C);
+        opponentHpBar.setForeground(opponent.getHp() < opponent.getMaxHp() * 0.25 ? LOW_HP_C : HP_C);
 
-        // ── Stats labels ───────────────────────────────────────────────────────
-
-        // Shield indicator on name label
         playerNameLabel.setText("👤  YOU — " + player.getName() + "  [" + player.getHeroClass() + "]"
                 + (player.getShieldAmount() > 0 ? "  🛡" : ""));
         opponentNameLabel.setText("🤖  ENEMY — " + opponent.getName() + (opponent.getShieldAmount() > 0 ? "  🛡" : ""));
 
-        // ── Ability buttons ────────────────────────────────────────────────────
         List<Ability> abilities = player.getAbilities();
         for (int i = 0; i < abilityButtons.length; i++) {
             Ability ab = abilities.get(i);
@@ -136,18 +101,15 @@ public class ArenaPanel extends JPanel implements Renderable, GameObserver {
             abilityButtons[i].setBorder(makeBorder(bg));
 
             String cdTag = onCd ? "  ⏳ " + ab.getCurrentCooldown() + "t" : "";
-            abilityButtons[i].setText("✨ " + ab.getAbilityName()
-                    + "  (MP:" + ab.getManaCost() + ")" + cdTag);
+            abilityButtons[i].setText("✨ " + ab.getAbilityName() + "  (MP:" + ab.getManaCost() + ")" + cdTag);
             abilityButtons[i].setToolTipText(ab.getTooltip());
             abilityButtons[i].setEnabled(!over && myTurn && ready);
         }
 
-        // ── Basic action buttons ───────────────────────────────────────────────
         attackButton.setEnabled(!over && myTurn);
         healButton.setEnabled(!over && myTurn);
         defendButton.setEnabled(!over && myTurn);
 
-        // ── Combat log ─────────────────────────────────────────────────────────
         StringBuilder sb = new StringBuilder();
         for (String line : controller.getCombatLog())
             sb.append(line).append("\n");
@@ -157,7 +119,6 @@ public class ArenaPanel extends JPanel implements Renderable, GameObserver {
         repaint();
     }
 
-    // ── GameObserver ───────────────────────────────────────────────────────────
 
     @Override
     public void onStateChanged() {
@@ -168,8 +129,6 @@ public class ArenaPanel extends JPanel implements Renderable, GameObserver {
         }
     }
 
-    // ── UI construction ────────────────────────────────────────────────────────
-
     private void buildUI() {
         // North — hero stat panels
         JPanel statsRow = new JPanel(new GridLayout(1, 2, 20, 0));
@@ -178,7 +137,6 @@ public class ArenaPanel extends JPanel implements Renderable, GameObserver {
         statsRow.add(buildHeroPanel(false));
         add(statsRow, BorderLayout.NORTH);
 
-        // Centre — combat log
         combatLogArea = new JTextArea(10, 42);
         combatLogArea.setEditable(false);
         combatLogArea.setBackground(new Color(10, 10, 20));
@@ -192,24 +150,20 @@ public class ArenaPanel extends JPanel implements Renderable, GameObserver {
         scroll.setBorder(titledBorder("⚔  Combat Log"));
         add(scroll, BorderLayout.CENTER);
 
-        // South — action buttons (2 rows × 3 columns)
         JPanel actionPanel = new JPanel(new GridLayout(2, 3, 8, 8));
         actionPanel.setBackground(BG);
         actionPanel.setBorder(titledBorder("⚡  Actions"));
 
         attackButton = makeButton("⚔  Basic Attack", new Color(160, 55, 55));
-        attackButton.setToolTipText(
-                "<html><b>Basic Attack</b><br>Deals 12 flat damage. Always available.</html>");
+        attackButton.setToolTipText("<html><b>Basic Attack</b><br>Deals 12 flat damage. Always available.</html>");
         attackButton.addActionListener(e -> controller.playerAction(-1));
 
         healButton = makeButton("💚  Heal (+20 HP)", new Color(40, 120, 70));
-        healButton.setToolTipText(
-                "<html><b>Heal</b><br>Restores 20 HP. No mana cost.</html>");
+        healButton.setToolTipText("<html><b>Heal</b><br>Restores 20 HP. No mana cost.</html>");
         healButton.addActionListener(e -> controller.playerAction(-2));
 
         defendButton = makeButton("🛡  Defend (Shield)", new Color(50, 95, 165));
-        defendButton.setToolTipText(
-                "<html><b>Defend</b><br>Reduces the next incoming hit by 15 damage.</html>");
+        defendButton.setToolTipText("<html><b>Defend</b><br>Reduces the next incoming hit by 15 damage.</html>");
         defendButton.addActionListener(e -> controller.playerAction(-3));
 
         List<Ability> abilities = controller.getPlayer().getAbilities();
@@ -230,7 +184,6 @@ public class ArenaPanel extends JPanel implements Renderable, GameObserver {
 
         add(actionPanel, BorderLayout.SOUTH);
 
-        // Tooltip styling
         UIManager.put("ToolTip.font", new Font("SansSerif", Font.PLAIN, 12));
         UIManager.put("ToolTip.background", new Color(25, 25, 50));
         UIManager.put("ToolTip.foreground", new Color(210, 210, 240));
@@ -284,8 +237,6 @@ public class ArenaPanel extends JPanel implements Renderable, GameObserver {
         return panel;
     }
 
-    // ── Responsive scaling ─────────────────────────────────────────────────────
-
     private void scaleFonts() {
         int w = getWidth();
         if (w <= 0)
@@ -314,8 +265,6 @@ public class ArenaPanel extends JPanel implements Renderable, GameObserver {
         revalidate();
         repaint();
     }
-
-    // ── Widget helpers ─────────────────────────────────────────────────────────
 
     private static JProgressBar makeBar(Color color, int value, int max, String label) {
         JProgressBar bar = new JProgressBar(0, max);
@@ -353,10 +302,6 @@ public class ArenaPanel extends JPanel implements Renderable, GameObserver {
     }
 
     private static javax.swing.border.TitledBorder titledBorder(String title) {
-        return BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(BORDER_C),
-                title, 0, 0,
-                new Font("SansSerif", Font.BOLD, 12),
-                new Color(180, 180, 220));
+        return BorderFactory.createTitledBorder(BorderFactory.createLineBorder(BORDER_C), title, 0, 0, new Font("SansSerif", Font.BOLD, 12), new Color(180, 180, 220));
     }
 }

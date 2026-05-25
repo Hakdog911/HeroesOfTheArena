@@ -1,6 +1,4 @@
-package hota;
-
-import hota.view.HeroSelectionFrame;
+import view.HeroSelectionFrame;
 import javax.swing.SwingUtilities;
 
 public class Main {

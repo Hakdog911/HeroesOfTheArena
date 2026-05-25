@@ -1,9 +1,5 @@
-package hota.model;
+package model;
 
-/**
- * Combatant
- * Contract for any entity that can participate in arena combat.
- */
 public interface Combatant {
     String getName();
     void takeDamage(int damage);

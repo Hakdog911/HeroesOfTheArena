@@ -1,9 +1,5 @@
-package hota.model;
+package model;
 
-/**
- * Warrior
- * Tanky melee fighter — high HP, powerful close-range abilities.
- */
 public class Warrior extends Hero {
 
     private int armor;
@@ -15,15 +11,12 @@ public class Warrior extends Hero {
 
     @Override
     protected void initAbilities() {
-        abilities.add(new Ability("Shield Bash",      25, 15, 2,
-                "Bashes the enemy with a shield, dealing heavy damage."));
-        abilities.add(new Ability("Berserker Strike", 40, 25, 3,
-                "A powerful rage-fueled strike with massive damage."));
-        abilities.add(new Ability("War Cry",          20, 10, 4,
-                "A fierce battle cry that damages nearby enemies."));
+        abilities.add(new Ability("Shield Bash", 25, 15, 2, "Bashes the enemy with a shield, dealing heavy damage."));
+        abilities.add(new Ability("Berserker Strike", 40, 25, 3, "A powerful rage-fueled strike with massive damage."));
+        abilities.add(new Ability("War Cry", 20, 10, 4, "A fierce battle cry that damages nearby enemies."));
     }
 
-    @Override public String getHeroClass() { return "Warrior"; }
+    @Override public String getHeroClass(){return "Warrior";}
 
-    public int getArmor() { return armor; }
+    public int getArmor(){return armor;}
 }

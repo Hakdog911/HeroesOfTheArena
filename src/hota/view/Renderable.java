@@ -1,4 +1,4 @@
-package hota.view;
+package view;
 
 public interface Renderable {
     void render();
